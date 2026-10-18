@@ -65,7 +65,7 @@ esac
 # -- device access -----------------------------------------------------------
 
 say "Granting device access"
-RULE=/etc/udev/rules.d/99-hongtai-panel.rules
+RULE=/etc/udev/rules.d/70-hongtai-panel.rules  # install-udev also drops the old 99- copy
 if [[ -f "$RULE" ]]; then
     ok "udev rule already installed"
 else

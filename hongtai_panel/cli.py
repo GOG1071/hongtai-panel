@@ -49,6 +49,11 @@ def open_panel(args) -> Panel:
                 f"  {Path(sys.argv[0]).name} install-udev\n"
                 f"then unplug and replug the panel."
             ) from None
+        if exc.errno == errno.EBUSY or "Device or resource busy" in str(exc):
+            raise SystemExit(
+                f"{port} is held by another hongtai-panel (usually the service).\n"
+                f"Stop it first: systemctl --user stop hongtai-panel"
+            ) from None
         raise SystemExit(f"Could not open {port}: {exc}") from None
     info = panel.connect(max_kb_override=getattr(args, "max_kb", 0) or 0)
     log.info(
@@ -242,7 +247,10 @@ UDEV_RULE = (
     'SUBSYSTEM=="tty", ATTRS{idVendor}=="33c3", ATTRS{idProduct}=="7791", '
     'MODE="0660", GROUP="dialout", TAG+="uaccess", SYMLINK+="hongtai-panel"\n'
 )
-UDEV_PATH = Path("/etc/udev/rules.d/99-hongtai-panel.rules")
+# 70-, not 99-: 73-seat-late.rules turns the uaccess tag into an ACL, so a rule
+# sorted after it sets the tag too late and the user gets "Permission denied".
+UDEV_PATH = Path("/etc/udev/rules.d/70-hongtai-panel.rules")
+LEGACY_UDEV_PATH = Path("/etc/udev/rules.d/99-hongtai-panel.rules")
 
 
 def root_prefix() -> list[str]:
@@ -278,6 +286,7 @@ def cmd_install_udev(args) -> int:
     script = (
         "set -e\n"
         f"cat > {UDEV_PATH} <<'EOF'\n{UDEV_RULE}EOF\n"
+        f"rm -f {LEGACY_UDEV_PATH}\n"
         "udevadm control --reload-rules\n"
         "udevadm trigger --subsystem-match=tty\n"
     )

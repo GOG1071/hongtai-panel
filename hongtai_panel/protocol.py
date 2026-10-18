@@ -22,8 +22,10 @@ Two distinct wire formats share the port:
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
+import termios
 import threading
 import time
 from dataclasses import dataclass, field
@@ -194,6 +196,11 @@ class Panel:
     def __init__(self, port: str, timeout: float = 2.0):
         self.port_path = port
         self._serial = serial.Serial(port, BAUD, timeout=timeout, write_timeout=5.0)
+        # Refuse every later open() of this tty with EBUSY. Tools that probe
+        # /dev/ttyACM* (LED controllers, ModemManager) otherwise inject bytes
+        # mid-frame and the panel blanks. pyserial's exclusive=True is only an
+        # advisory flock, which those tools never check.
+        fcntl.ioctl(self._serial.fileno(), termios.TIOCEXCL)
         self._lock = threading.Lock()
         self._keepalive: threading.Thread | None = None
         self._stop = threading.Event()
