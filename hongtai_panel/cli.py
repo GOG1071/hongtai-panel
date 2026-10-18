@@ -247,7 +247,10 @@ UDEV_RULE = (
     'SUBSYSTEM=="tty", ATTRS{idVendor}=="33c3", ATTRS{idProduct}=="7791", '
     'MODE="0660", GROUP="dialout", TAG+="uaccess", SYMLINK+="hongtai-panel"\n'
 )
-UDEV_PATH = Path("/etc/udev/rules.d/99-hongtai-panel.rules")
+# 70-, not 99-: 73-seat-late.rules turns the uaccess tag into an ACL, so a rule
+# sorted after it sets the tag too late and the user gets "Permission denied".
+UDEV_PATH = Path("/etc/udev/rules.d/70-hongtai-panel.rules")
+LEGACY_UDEV_PATH = Path("/etc/udev/rules.d/99-hongtai-panel.rules")
 
 
 def root_prefix() -> list[str]:
@@ -283,6 +286,7 @@ def cmd_install_udev(args) -> int:
     script = (
         "set -e\n"
         f"cat > {UDEV_PATH} <<'EOF'\n{UDEV_RULE}EOF\n"
+        f"rm -f {LEGACY_UDEV_PATH}\n"
         "udevadm control --reload-rules\n"
         "udevadm trigger --subsystem-match=tty\n"
     )
